@@ -3,18 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The Orb — Desk Companion (V1)</title>
+<title>The Orb — V1.1</title>
 <style>
   :root{
     --bg:#0a0b10;
-    --core:#9ae6ff;        /* base orb color */
-    --aura:#64ffd4;        /* aura glow */
+    --core:#9ae6ff;        /* base orb color (awake) */
+    --aura:#64ffd4;        /* aura glow (awake) */
     --content:#a0ff9e;     /* content mood tint */
     --curious:#a1b6ff;     /* curious mood tint */
     --lonely:#ff9eb3;      /* lonely mood tint */
-    --energized:#fff59e;   /* energized pulse tint */
+    --energized:#fff59e;   /* energized tint */
     --stressed:#ff8c8c;    /* stressed tint */
-    --sleep:#7ea2a8;       /* sleeping tint */
+    --sleep-core:#6aa8ff;  /* sleep deep blue core */
+    --sleep-aura:#2e66ff;  /* sleep aura deep blue */
     --ring:#1b2130;
     --tick:#2a3347;
     --spark:#ffffff;
@@ -34,95 +35,98 @@
   .stage{
     position:relative;
     height:100%;
-    display:grid;
-    place-items:center;
     user-select:none;
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Orb container */
+  /* Toolbar */
+  .bar{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    display:flex; gap:10px; align-items:center;
+    padding:6px 10px; border-radius:12px;
+    background: rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    backdrop-filter: blur(6px);
+    font-size:12px; color:var(--muted);
+  }
+  .bar label{ color:var(--text); opacity:.85; font-weight:600; }
+  .bar select{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+    color:var(--text); padding:4px 8px; border-radius:8px; outline:none;
+  }
+
+  /* Orb wrapper that can drift */
+  .orb-wrap{
+    position:absolute;
+    left:50%; top:55%;
+    transform:translate(-50%,-50%);
+    transition: transform 2.5s ease;
+    will-change: transform;
+  }
+
+  /* Orb body */
   .orb{
     position:relative;
     width:min(60vmin,520px);
     aspect-ratio:1/1;
     border-radius:50%;
-    display:grid;
-    place-items:center;
+    display:grid; place-items:center;
     filter: drop-shadow(0 20px 60px rgba(0,0,0,.45));
     cursor:pointer;
     transition: transform .18s ease;
+    will-change: transform;
   }
   .orb:active{ transform:scale(.99); }
 
-  /* Outer orbit ring (shows minute ticks + interval arc) */
   .orbit-ring{
-    position:absolute; inset:0;
-    border-radius:50%;
+    position:absolute; inset:0; border-radius:50%;
     background:
       radial-gradient(closest-side, transparent calc(50% - 10px), var(--ring) calc(50% - 9px), transparent calc(50% - 8px)),
       radial-gradient(closest-side, transparent calc(50% - 2px), rgba(255,255,255,.08) calc(50% - 1px), transparent 50%);
     mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 49%);
+    pointer-events:none;
   }
-
-  /* Minute ticks */
-  .ticks{
-    position:absolute; inset:0; border-radius:50%;
-  }
+  .ticks{ position:absolute; inset:0; border-radius:50%; }
   .tick{
     position:absolute; left:50%; top:50%;
     width:2px; height:8%;
     transform-origin: center calc(-190%);
     background: var(--tick);
-    opacity:.7;
-    border-radius:2px;
+    opacity:.7; border-radius:2px;
   }
 
-  /* Interval progress arc (drawn with conic-gradient) */
   .interval-arc{
-    position:absolute; inset:-10px;
-    border-radius:50%;
+    position:absolute; inset:-10px; border-radius:50%;
     background:
       conic-gradient(var(--aura) var(--arc), transparent 0),
       radial-gradient(closest-side, transparent calc(50% - 12px), rgba(255,255,255,.06) calc(50% - 11px), transparent calc(50% - 10px));
-    filter: blur(0.3px);
-    pointer-events:none;
+    filter: blur(0.3px); pointer-events:none;
   }
 
-  /* Inner core + aura */
   .core{
-    position:absolute; inset:12%;
-    border-radius:50%;
+    position:absolute; inset:12%; border-radius:50%;
     background:
       radial-gradient(circle at 50% 45%, var(--core) 0%, #7bd2ff 20%, #4ed6b9 60%, #1b2a3a 100%);
-    box-shadow:
-      0 0 40px 10px var(--aura),
-      inset 0 0 80px 20px rgba(255,255,255,.08);
+    box-shadow: 0 0 40px 10px var(--aura), inset 0 0 80px 20px rgba(255,255,255,.08);
     transition: filter .3s ease, box-shadow .3s ease, background .3s ease;
   }
-
   .aura{
-    position:absolute; inset:0;
-    border-radius:50%;
+    position:absolute; inset:0; border-radius:50%;
     background:radial-gradient(60% 60% at 50% 45%, rgba(100,255,212,.35), transparent 70%);
-    filter: blur(20px);
-    pointer-events:none;
-    transition: opacity .4s ease;
-    opacity:.8;
+    filter: blur(20px); pointer-events:none; transition: opacity .4s ease, background .3s ease; opacity:.8;
+  }
+  .mood-overlay{
+    position:absolute; inset:14%; border-radius:50%;
+    background: radial-gradient(60% 60% at 50% 45%, transparent 40%, currentColor 120%);
+    mix-blend-mode: screen; filter: blur(18px);
+    opacity:0; pointer-events:none; transition: opacity .4s ease;
   }
 
-  /* Particle layer */
-  .particles{
-    position:absolute; inset:18%;
-    filter: blur(.2px);
-    pointer-events:none;
-    mix-blend-mode: screen;
-  }
+  .particles{ position:absolute; inset:18%; filter: blur(.2px); pointer-events:none; mix-blend-mode: screen; }
   .particle{
-    position:absolute;
-    width:6px; height:6px; border-radius:50%;
+    position:absolute; width:6px; height:6px; border-radius:50%;
     background: radial-gradient(circle, var(--spark) 0%, rgba(255,255,255,.6) 60%, transparent 70%);
-    opacity:.7;
-    animation: float 8s linear infinite;
+    opacity:.7; animation: float 8s linear infinite;
   }
   @keyframes float{
     from{ transform:translate(var(--sx,0), var(--sy,0)) scale(1); opacity:.6; }
@@ -130,90 +134,76 @@
     to  { transform:translate(var(--sx,0), var(--sy,0)) scale(1); opacity:.6; }
   }
 
-  /* Mood overlays */
-  .mood-overlay{
-    position:absolute; inset:14%;
-    border-radius:50%;
-    background: radial-gradient(60% 60% at 50% 45%, transparent 40%, currentColor 120%);
-    mix-blend-mode: screen;
-    filter: blur(18px);
-    opacity:0;
-    pointer-events:none;
-    transition: opacity .4s ease;
+  .ripple{
+    position:absolute; inset:0; border-radius:50%; border:2px solid rgba(255,255,255,.25);
+    transform: scale(.9); opacity:0; pointer-events:none;
+  }
+  .ripple.show{ animation: ripple .8s ease-out; }
+  @keyframes ripple{ from{ transform:scale(.7); opacity:.6; } to{ transform:scale(1.25); opacity:0; } }
+
+  /* Play, Pet visuals */
+  .play-wave{
+    position:absolute; inset:-6%; border-radius:50%; pointer-events:none;
+    border:2px dashed rgba(255,255,255,.25); opacity:0;
+  }
+  .play{ animation: playAnim 700ms ease-out; }
+  @keyframes playAnim{
+    from{ transform:scale(.9) rotate(0deg); opacity:.7; }
+    to  { transform:scale(1.2) rotate(25deg); opacity:0; }
   }
 
-  /* Status footer (tiny) */
+  .pet-glow{
+    position:absolute; inset:8%; border-radius:50%; pointer-events:none;
+    box-shadow: 0 0 0 0 rgba(255,255,255,.15) inset;
+    opacity:0;
+  }
+  .pet{ animation: petAnim 1200ms ease-out; }
+  @keyframes petAnim{
+    from{ opacity:.0; box-shadow: 0 0 0 0 rgba(255,255,255,.18) inset; }
+    40% { opacity:.8; box-shadow: 0 0 60px 12px rgba(255,255,255,.22) inset; }
+    to{ opacity:0; box-shadow: 0 0 0 0 rgba(255,255,255,.0) inset; }
+  }
+
+  .confetti{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .conf{ position:absolute; width:6px; height:10px; border-radius:2px; background: white; opacity:.9; animation: fall 900ms ease-out forwards; }
+  @keyframes fall{ from{ transform: translateY(-10px) rotate(0deg); } to{ transform: translateY(140%) rotate(380deg); opacity:.2; } }
+
   .hud{
-    position:absolute; bottom:14px; left:50%;
-    transform:translateX(-50%);
-    font-size:12px; letter-spacing:.3px;
-    color:var(--muted);
-    text-align:center;
-    opacity:.85;
-    padding:6px 10px;
-    background: rgba(255,255,255,.03);
-    border:1px solid rgba(255,255,255,.06);
-    border-radius:999px;
-    backdrop-filter: blur(6px);
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-size:12px; letter-spacing:.3px; color:var(--muted); text-align:center; opacity:.85;
+    padding:6px 10px; background: rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:999px; backdrop-filter: blur(6px);
   }
   .hud b{ color:var(--text); font-weight:600; }
-
-  /* Ripple feedback on feed */
-  .ripple{
-    position:absolute; inset:0; border-radius:50%;
-    border:2px solid rgba(255,255,255,.25);
-    transform: scale(.9);
-    opacity:0;
-    pointer-events:none;
-  }
-  .ripple.show{
-    animation: ripple .8s ease-out;
-  }
-  @keyframes ripple{
-    from{ transform:scale(.7); opacity:.6; }
-    to  { transform:scale(1.25); opacity:0; }
-  }
-
-  /* Playful easter egg confetti */
-  .confetti{
-    position:absolute; inset:0; pointer-events:none; overflow:hidden;
-  }
-  .conf{
-    position:absolute; width:6px; height:10px; border-radius:2px;
-    background: white; opacity:.9;
-    animation: fall 900ms ease-out forwards;
-  }
-  @keyframes fall{
-    from{ transform: translateY(-10px) rotate(0deg); }
-    to  { transform: translateY(140%) rotate(380deg); opacity:.2; }
-  }
-
-  /* Accessibility hint (hidden but togglable) */
-  .hint{
-    position:absolute; top:12px; left:50%; transform:translateX(-50%);
-    font-size:11px; color:var(--muted); opacity:.65;
-    background: rgba(255,255,255,.02);
-    border:1px solid rgba(255,255,255,.06);
-    padding:4px 8px; border-radius:8px; backdrop-filter: blur(4px);
-  }
-  .hidden{ display:none; }
 </style>
 </head>
 <body>
   <div class="stage" id="stage">
-    <div class="hint" id="hint">Tap/Click to feed · Hold for deep feed · Ctrl+Shift+. hotkey · Press “i” to cycle interval</div>
-    <div class="orb" id="orb" aria-label="Interactive Orb">
-      <div class="orbit-ring">
-        <div class="ticks" id="ticks"></div>
-      </div>
-      <div class="interval-arc" id="intervalArc"></div>
-      <div class="core" id="core"></div>
-      <div class="aura" id="aura"></div>
-      <div class="mood-overlay" id="mood"></div>
-      <div class="particles" id="particles"></div>
-      <div class="ripple" id="ripple"></div>
-      <div class="confetti" id="confetti"></div>
+    <div class="bar">
+      <label for="intervalSel">Interval</label>
+      <select id="intervalSel" aria-label="Interval (minutes)">
+        <option>5</option><option>10</option><option selected>15</option>
+        <option>20</option><option>25</option><option>30</option>
+      </select>
+      <span>• single=feed • double=play • triple=pet • hold=deep feed • Ctrl+Shift+.</span>
     </div>
+
+    <div class="orb-wrap" id="orbWrap">
+      <div class="orb" id="orb" aria-label="Interactive Orb">
+        <div class="orbit-ring">
+          <div class="ticks" id="ticks"></div>
+        </div>
+        <div class="interval-arc" id="intervalArc"></div>
+        <div class="core" id="core"></div>
+        <div class="aura" id="aura"></div>
+        <div class="mood-overlay" id="mood"></div>
+        <div class="particles" id="particles"></div>
+        <div class="ripple" id="ripple"></div>
+        <div class="play-wave" id="playWave"></div>
+        <div class="pet-glow" id="petGlow"></div>
+        <div class="confetti" id="confetti"></div>
+      </div>
+    </div>
+
     <div class="hud" id="hud">
       Interval: <b id="hudInterval">15m</b> · Fed today: <b id="hudCount">0</b> · Last: <b id="hudLast">–</b>
     </div>
@@ -224,12 +214,15 @@
   /* ----------- Settings ----------- */
   const url = new URL(window.location.href);
   const DEFAULT_INTERVAL = parseInt(url.searchParams.get('interval') || '15', 10) || 15; // minutes
-  const INTERVAL_PRESETS = [10,15,20,25];
-  const SLEEP_START = 20; // 20:00
-  const SLEEP_END   = 6;  // 06:00
-  const HOLD_MS = 700;    // hold to deep feed
+  const INTERVAL_PRESETS = [5,10,15,20,25,30];
+  const SLEEP_START = 22; // 10 PM
+  const SLEEP_END   = 6;  // 6 AM
+  const HOLD_MS = 700;
+  const WAKE_WINDOW_MS = 30000; // wake during sleep for 30s after interaction
+  const MULTI_TAP_MS = 350; // window to detect multi-presses
 
-  /* ----------- State ----------- */
+  /* ----------- Elements ----------- */
+  const orbWrap = document.getElementById('orbWrap');
   const orbEl = document.getElementById('orb');
   const coreEl = document.getElementById('core');
   const auraEl = document.getElementById('aura');
@@ -237,26 +230,37 @@
   const ticksEl = document.getElementById('ticks');
   const arcEl = document.getElementById('intervalArc');
   const rippleEl = document.getElementById('ripple');
+  const playWaveEl = document.getElementById('playWave');
+  const petGlowEl = document.getElementById('petGlow');
   const confettiEl = document.getElementById('confetti');
+  const particlesEl = document.getElementById('particles');
 
   const hudInterval = document.getElementById('hudInterval');
   const hudCount = document.getElementById('hudCount');
   const hudLast = document.getElementById('hudLast');
+  const intervalSel = document.getElementById('intervalSel');
 
-  const particlesEl = document.getElementById('particles');
-
+  /* ----------- State ----------- */
   let INTERVAL_MIN = DEFAULT_INTERVAL;
   let feedCount = 0;
   let lastFedAt = 0; // epoch ms
   let energizedUntil = 0;
   let stressedUntil = 0;
+  let wakeUntil = 0; // allow wake during sleep after interaction
   let holdTimer = null;
-  let tapTimestamps = []; // for playful easter egg (rapid taps)
-  let recentFeeds = [];   // for stressed detection
+
+  let tapBuffer = 0;
+  let tapTimer = null;
+
+  let recentFeeds = []; // for stressed detection
   let arcDeg = 0;
 
+  // drift
+  let driftTarget = {x: 0, y: 0};
+  let lastDriftSet = 0;
+
   /* ----------- Persistence ----------- */
-  const KEY = 'orb_v1_state';
+  const KEY = 'orb_v1_1_state';
   function todayKeyStamp(){
     const d = new Date(); d.setHours(0,0,0,0);
     return d.getTime();
@@ -269,23 +273,22 @@
       if(obj.day === todayKeyStamp()){
         feedCount = obj.feedCount||0;
         lastFedAt = obj.lastFedAt||0;
+        INTERVAL_MIN = obj.interval || INTERVAL_MIN;
       } else {
-        // new day, reset
-        feedCount = 0;
-        lastFedAt = 0;
+        feedCount = 0; lastFedAt = 0;
         saveState();
       }
     }catch(e){}
   }
   function saveState(){
-    const obj = { day: todayKeyStamp(), feedCount, lastFedAt };
+    const obj = { day: todayKeyStamp(), feedCount, lastFedAt, interval: INTERVAL_MIN };
     localStorage.setItem(KEY, JSON.stringify(obj));
   }
 
-  /* ----------- Ticks (minute markers on ring) ----------- */
+  /* ----------- Build UI bits ----------- */
   function buildTicks(){
     ticksEl.innerHTML = '';
-    const N = 60; // minute-style markers
+    const N = 60;
     for(let i=0;i<N;i++){
       const t = document.createElement('div');
       t.className = 'tick';
@@ -295,8 +298,6 @@
       ticksEl.appendChild(t);
     }
   }
-
-  /* ----------- Particles ----------- */
   function spawnParticles(n=18){
     particlesEl.innerHTML = '';
     for(let i=0;i<n;i++){
@@ -313,68 +314,57 @@
     }
   }
 
-  /* ----------- Mood Engine ----------- */
-  function isSleeping(now=new Date()){
+  /* ----------- Sleep / Mood ----------- */
+  function isClockSleeping(now=new Date()){
     const h = now.getHours();
-    if(SLEEP_START > SLEEP_END){
+    if(SLEEP_START > SLEEP_END){ // crosses midnight
       return (h >= SLEEP_START || h < SLEEP_END);
     }
     return (h >= SLEEP_START && h < SLEEP_END);
   }
+  function isSleepingActive(){
+    const now = Date.now();
+    return isClockSleeping(new Date(now)) && now > wakeUntil;
+  }
 
   function setMoodVisual(mood){
-    // Default tints
-    let tint = getComputedStyle(document.documentElement).getPropertyValue('--core').trim();
-    let aura = getComputedStyle(document.documentElement).getPropertyValue('--aura').trim();
     let overlay = 'transparent';
-    let auraOpacity = .8;
+    let aura = getComputedStyle(document.documentElement).getPropertyValue('--aura').trim();
     let coreFilter = 'brightness(1)';
 
-    switch(mood){
-      case 'energized':
-        overlay = 'var(--energized)';
-        aura = 'var(--energized)';
-        coreFilter = 'brightness(1.25) contrast(1.1) saturate(1.2)';
-        break;
-      case 'content':
-        overlay = 'var(--content)';
-        aura = 'var(--content)';
-        coreFilter = 'brightness(1.1)';
-        break;
-      case 'curious':
-        overlay = 'var(--curious)';
-        aura = 'var(--curious)';
-        coreFilter = 'brightness(0.95)';
-        break;
-      case 'lonely':
-        overlay = 'var(--lonely)';
-        aura = 'var(--lonely)';
-        coreFilter = 'brightness(0.8) saturate(0.9)';
-        auraOpacity = .55;
-        break;
-      case 'stressed':
-        overlay = 'var(--stressed)';
-        aura = 'var(--stressed)';
-        coreFilter = 'brightness(1.1) contrast(1.2)';
-        break;
-      case 'sleep':
-        overlay = 'var(--sleep)';
-        aura = 'var(--sleep)';
-        coreFilter = 'brightness(0.6) saturate(.8)';
-        auraOpacity = .45;
-        break;
+    // swap palette for sleep
+    if(mood==='sleep'){
+      coreEl.style.background =
+        `radial-gradient(circle at 50% 45%, var(--sleep-core) 0%, #4980ff 22%, #2a3a80 60%, #101b33 100%)`;
+      auraEl.style.background =
+        `radial-gradient(60% 60% at 50% 45%, rgba(46,102,255,.35), transparent 70%)`;
+      auraEl.style.opacity = .6;
+      moodEl.style.color = 'var(--sleep-core)';
+      moodEl.style.opacity = .5;
+      coreFilter = 'brightness(0.65) saturate(.85)';
+    } else {
+      coreEl.style.background =
+        `radial-gradient(circle at 50% 45%, var(--core) 0%, #7bd2ff 20%, #4ed6b9 60%, #1b2a3a 100%)`;
+      auraEl.style.background =
+        `radial-gradient(60% 60% at 50% 45%, rgba(100,255,212,.35), transparent 70%)`;
+      auraEl.style.opacity = .8;
+      switch(mood){
+        case 'energized': overlay='var(--energized)'; coreFilter='brightness(1.25) contrast(1.1) saturate(1.2)'; aura='var(--energized)'; break;
+        case 'content':   overlay='var(--content)';   coreFilter='brightness(1.1)'; aura='var(--content)'; break;
+        case 'curious':   overlay='var(--curious)';   coreFilter='brightness(0.95)'; aura='var(--curious)'; break;
+        case 'lonely':    overlay='var(--lonely)';    coreFilter='brightness(0.8) saturate(0.9)'; aura='var(--lonely)'; auraEl.style.opacity=.55; break;
+        case 'stressed':  overlay='var(--stressed)';  coreFilter='brightness(1.1) contrast(1.2)'; aura='var(--stressed)'; break;
+      }
+      auraEl.style.background = `radial-gradient(60% 60% at 50% 45%, ${aura}33, transparent 70%)`;
+      moodEl.style.color = overlay;
+      moodEl.style.opacity = (overlay==='transparent') ? 0 : .6;
     }
-
-    auraEl.style.background = `radial-gradient(60% 60% at 50% 45%, ${aura}33, transparent 70%)`;
-    auraEl.style.opacity = auraOpacity;
-    moodEl.style.color = overlay;
-    moodEl.style.opacity = (overlay==='transparent') ? 0 : .6;
     coreEl.style.filter = coreFilter;
   }
 
   function currentMood(){
     const now = Date.now();
-    if(isSleeping(new Date(now))) return 'sleep';
+    if(isSleepingActive()) return 'sleep';
     if(now < energizedUntil) return 'energized';
     if(now < stressedUntil) return 'stressed';
     if(!lastFedAt) return 'curious';
@@ -384,7 +374,7 @@
     return 'lonely';
   }
 
-  /* ----------- Interval Arc (0→100% since last feed) ----------- */
+  /* ----------- Interval Arc ----------- */
   function updateArc(){
     const now = Date.now();
     let since = lastFedAt ? (now - lastFedAt) : 0;
@@ -394,27 +384,10 @@
     arcEl.style.setProperty('--arc', arcDeg + 'deg');
   }
 
-  /* Spark when an interval completes */
-  let lastSparkIndex = -1;
-  function maybeSpark(){
-    if(!lastFedAt) return;
-    const now = Date.now();
-    const elapsedMins = Math.floor((now - lastFedAt)/60000);
-    const idx = Math.floor(elapsedMins / INTERVAL_MIN);
-    if(idx !== lastSparkIndex){
-      lastSparkIndex = idx;
-      ripple(); // subtle feedback
-    }
-  }
-
-  /* ----------- Feed mechanics ----------- */
+  /* ----------- Effects ----------- */
   function ripple(){
-    rippleEl.classList.remove('show');
-    // restart animation
-    void rippleEl.offsetWidth;
-    rippleEl.classList.add('show');
+    rippleEl.classList.remove('show'); void rippleEl.offsetWidth; rippleEl.classList.add('show');
   }
-
   function confetti(){
     for(let i=0;i<24;i++){
       const c = document.createElement('div');
@@ -425,15 +398,29 @@
       setTimeout(()=>c.remove(), 950);
     }
   }
+  function playBurst(){
+    playWaveEl.classList.remove('play'); void playWaveEl.offsetWidth; playWaveEl.classList.add('play');
+    // playful wobble
+    orbEl.animate(
+      [{ transform:'scale(1)' }, { transform:'scale(1.05) rotate(2deg)' }, { transform:'scale(1)' }],
+      { duration:500, easing:'ease-out' }
+    );
+  }
+  function petSoothing(){
+    petGlowEl.classList.remove('pet'); void petGlowEl.offsetWidth; petGlowEl.classList.add('pet');
+  }
 
+  /* ----------- Actions ----------- */
+  function wakeTemporarily(){
+    wakeUntil = Date.now() + WAKE_WINDOW_MS;
+  }
   function markFeed(deep=false, source='tap'){
+    wakeTemporarily();
     const now = Date.now();
-    // Stressed detector: 3+ feeds in last 5m
+    // Stressed if 3+ feeds in 5m
     recentFeeds = recentFeeds.filter(t => now - t < 5*60*1000);
     recentFeeds.push(now);
-    if(recentFeeds.length >= 3){
-      stressedUntil = now + 2500;
-    }
+    if(recentFeeds.length >= 3){ stressedUntil = now + 2500; }
 
     lastFedAt = now;
     feedCount += deep ? 2 : 1;
@@ -442,8 +429,19 @@
 
     ripple();
     if(deep) confetti();
-    updateHud();
-    updateArc();
+    updateHud(); updateArc(); setMoodVisual(currentMood());
+  }
+  function play(){
+    wakeTemporarily();
+    playBurst();
+    energizedUntil = Date.now() + 4000;
+    setMoodVisual(currentMood());
+  }
+  function pet(){
+    wakeTemporarily();
+    petSoothing();
+    // mini-calm: extend content mood slightly
+    energizedUntil = Math.max(energizedUntil, Date.now() + 3000);
     setMoodVisual(currentMood());
   }
 
@@ -451,9 +449,7 @@
   function fmtTime(ts){
     if(!ts) return '–';
     const d = new Date(ts);
-    let h = d.getHours();
-    const m = d.getMinutes().toString().padStart(2,'0');
-    const ampm = h>=12 ? 'PM' : 'AM';
+    let h = d.getHours(); const m = d.getMinutes().toString().padStart(2,'0'); const ampm = h>=12?'PM':'AM';
     h = h%12 || 12;
     return `${h}:${m} ${ampm}`;
   }
@@ -463,17 +459,26 @@
     hudLast.textContent = fmtTime(lastFedAt);
   }
 
-  /* ----------- Input handlers ----------- */
+  /* ----------- Input: presses & hold ----------- */
   function onPointerDown(e){
     e.preventDefault();
-    tapTimestamps.push(Date.now());
-    tapTimestamps = tapTimestamps.filter(t => Date.now()-t < 3000);
-    if(tapTimestamps.length >= 5) confetti(); // playful easter egg
-
-    holdTimer = setTimeout(()=>{ markFeed(true, 'hold'); holdTimer=null; }, HOLD_MS);
+    // start hold timer for deep feed
+    holdTimer = setTimeout(()=>{ holdTimer=null; tapBuffer=0; markFeed(true,'hold'); }, HOLD_MS);
+  }
+  function finalizeTaps(){
+    // interpret tapBuffer: 1=feed, 2=play, 3=pet
+    if(tapBuffer === 1) markFeed(false, 'single');
+    else if(tapBuffer === 2) play();
+    else if(tapBuffer >= 3) pet();
+    tapBuffer = 0;
   }
   function onPointerUp(e){
-    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; markFeed(false, 'tap'); }
+    if(holdTimer){ // not a long hold, count taps
+      clearTimeout(holdTimer); holdTimer=null;
+      tapBuffer++;
+      if(tapTimer) clearTimeout(tapTimer);
+      tapTimer = setTimeout(()=>{ finalizeTaps(); }, MULTI_TAP_MS);
+    }
   }
 
   // Hotkey: Ctrl+Shift+.
@@ -482,27 +487,37 @@
       e.preventDefault();
       markFeed(false, 'hotkey');
     }
-    if(e.key.toLowerCase() === 'i'){ // cycle interval presets
+    if(e.key.toLowerCase() === 'i'){ // cycle presets
       const idx = INTERVAL_PRESETS.indexOf(INTERVAL_MIN);
       const next = INTERVAL_PRESETS[(idx+1) % INTERVAL_PRESETS.length];
       INTERVAL_MIN = next;
-      updateHud();
-      updateArc();
+      intervalSel.value = String(next);
+      saveState();
+      updateHud(); updateArc();
     }
   }
 
-  // Parent → iframe integration (optional)
+  // Parent→iframe hook still supported
   window.addEventListener('message', (e)=>{
-    if(e?.data?.type === 'taskCompleted'){
-      markFeed(false, 'postMessage');
-    }
+    if(e?.data?.type === 'taskCompleted'){ markFeed(false, 'postMessage'); }
   });
 
-  /* ----------- Animation loop ----------- */
+  /* ----------- Drift (awake only) ----------- */
+  function setNewDriftTarget(){
+    // Wander within a ~4% viewport radius around center, subtle
+    const dx = (Math.random()*8 - 4); // -4%..+4% of viewport width
+    const dy = (Math.random()*5 - 2.5); // -2.5%..+2.5% of viewport height
+    driftTarget = { x: dx, y: dy };
+    lastDriftSet = performance.now();
+    const base = 'translate(-50%,-50%)';
+    orbWrap.style.transform = `${base} translate(${dx}vw, ${dy}vh)`;
+  }
+
+  /* ----------- Animation Loop ----------- */
   function tick(){
-    // mood drift micro-animation (breathing / jitter)
     const mood = currentMood();
 
+    // breathing / jitter on orb scale
     if(mood === 'stressed'){
       orbEl.style.transform = `translateZ(0) scale(1) translate(${(Math.random()*2-1)}px, ${(Math.random()*2-1)}px)`;
     } else {
@@ -512,44 +527,19 @@
       orbEl.style.transform = `translateZ(0) scale(${s.toFixed(3)})`;
     }
 
+    // schedule new drift every 2–4s when awake
+    if(!isSleepingActive()){
+      const elapsed = performance.now() - lastDriftSet;
+      if(elapsed > (2000 + Math.random()*2000)){
+        setNewDriftTarget();
+      }
+    } else {
+      // snap to center during sleep
+      const base = 'translate(-50%,-50%)';
+      if(!/translate\(-50%,-50%\)$/.test(orbWrap.style.transform)){
+        orbWrap.style.transform = base;
+      }
+    }
+
     updateArc();
-    maybeSpark();
-    requestAnimationFrame(tick);
-  }
-
-  /* ----------- Midnight reset ----------- */
-  function scheduleMidnightReset(){
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24,0,0,0);
-    setTimeout(()=>{ feedCount=0; lastFedAt=0; saveState(); updateHud(); }, midnight-now);
-  }
-
-  /* ----------- Boot ----------- */
-  function boot(){
-    buildTicks();
-    spawnParticles();
-    loadState();
-    updateHud();
-    setMoodVisual(currentMood());
-    updateArc();
-    scheduleMidnightReset();
-
-    // Inputs
-    orbEl.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('keydown', onKeyDown);
-
-    // Show a hint for a few seconds on first run
-    const hint = document.getElementById('hint');
-    setTimeout(()=> hint.classList.add('hidden'), 6000);
-
-    // Start loop
-    requestAnimationFrame(tick);
-  }
-
-  boot();
-})();
-</script>
-</body>
-</html>
+    setMoodVisu
