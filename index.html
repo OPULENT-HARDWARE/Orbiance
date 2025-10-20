@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>The Orb — V1.1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>The Orb — V1.1a (Android-safe)</title>
 <style>
   :root{
     --bg:#0a0b10;
-    --core:#9ae6ff;        /* base orb color (awake) */
-    --aura:#64ffd4;        /* aura glow (awake) */
-    --content:#a0ff9e;     /* content mood tint */
-    --curious:#a1b6ff;     /* curious mood tint */
-    --lonely:#ff9eb3;      /* lonely mood tint */
-    --energized:#fff59e;   /* energized tint */
-    --stressed:#ff8c8c;    /* stressed tint */
-    --sleep-core:#6aa8ff;  /* sleep deep blue core */
-    --sleep-aura:#2e66ff;  /* sleep aura deep blue */
+    --core:#9ae6ff;        /* awake base */
+    --aura:#64ffd4;        /* awake aura */
+    --content:#a0ff9e;
+    --curious:#a1b6ff;
+    --lonely:#ff9eb3;
+    --energized:#fff59e;
+    --stressed:#ff8c8c;
+    --sleep-core:#6aa8ff;  /* deep blue */
+    --sleep-aura:#2e66ff;
     --ring:#1b2130;
     --tick:#2a3347;
     --spark:#ffffff;
@@ -28,7 +28,7 @@
     margin:0;
     background:radial-gradient(1200px 800px at 50% 100%, #0c0f16 0%, var(--bg) 60%, #05060a 100%);
     color:var(--text);
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
     overflow:hidden;
   }
 
@@ -42,7 +42,7 @@
   /* Toolbar */
   .bar{
     position:absolute; top:10px; left:50%; transform:translateX(-50%);
-    display:flex; gap:10px; align-items:center;
+    display:flex; gap:10px; align-items:center; z-index:5;
     padding:6px 10px; border-radius:12px;
     background: rgba(255,255,255,.03);
     border:1px solid rgba(255,255,255,.06);
@@ -75,6 +75,7 @@
     cursor:pointer;
     transition: transform .18s ease;
     will-change: transform;
+    touch-action: manipulation; /* Android fix: no 300ms delay */
   }
   .orb:active{ transform:scale(.99); }
 
@@ -86,7 +87,7 @@
     mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 49%);
     pointer-events:none;
   }
-  .ticks{ position:absolute; inset:0; border-radius:50%; }
+  .ticks{ position:absolute; inset:0; border-radius:50%; pointer-events:none; }
   .tick{
     position:absolute; left:50%; top:50%;
     width:2px; height:8%;
@@ -109,6 +110,7 @@
       radial-gradient(circle at 50% 45%, var(--core) 0%, #7bd2ff 20%, #4ed6b9 60%, #1b2a3a 100%);
     box-shadow: 0 0 40px 10px var(--aura), inset 0 0 80px 20px rgba(255,255,255,.08);
     transition: filter .3s ease, box-shadow .3s ease, background .3s ease;
+    pointer-events:none;
   }
   .aura{
     position:absolute; inset:0; border-radius:50%;
@@ -141,7 +143,6 @@
   .ripple.show{ animation: ripple .8s ease-out; }
   @keyframes ripple{ from{ transform:scale(.7); opacity:.6; } to{ transform:scale(1.25); opacity:0; } }
 
-  /* Play, Pet visuals */
   .play-wave{
     position:absolute; inset:-6%; border-radius:50%; pointer-events:none;
     border:2px dashed rgba(255,255,255,.25); opacity:0;
@@ -161,7 +162,7 @@
   @keyframes petAnim{
     from{ opacity:.0; box-shadow: 0 0 0 0 rgba(255,255,255,.18) inset; }
     40% { opacity:.8; box-shadow: 0 0 60px 12px rgba(255,255,255,.22) inset; }
-    to{ opacity:0; box-shadow: 0 0 0 0 rgba(255,255,255,.0) inset; }
+    to{ opacity:0; box-shadow: 0 0 0 0 rgba(255,255,255,0) inset; }
   }
 
   .confetti{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
@@ -184,7 +185,7 @@
         <option>5</option><option>10</option><option selected>15</option>
         <option>20</option><option>25</option><option>30</option>
       </select>
-      <span>• single=feed • double=play • triple=pet • hold=deep feed • Ctrl+Shift+.</span>
+      <span>• single=feed • double=play • triple=pet • hold=deep • Ctrl+Shift+.</span>
     </div>
 
     <div class="orb-wrap" id="orbWrap">
@@ -219,7 +220,7 @@
   const SLEEP_END   = 6;  // 6 AM
   const HOLD_MS = 700;
   const WAKE_WINDOW_MS = 30000; // wake during sleep for 30s after interaction
-  const MULTI_TAP_MS = 350; // window to detect multi-presses
+  const MULTI_TAP_MS = 350; // tap clustering window
 
   /* ----------- Elements ----------- */
   const orbWrap = document.getElementById('orbWrap');
@@ -260,7 +261,7 @@
   let lastDriftSet = 0;
 
   /* ----------- Persistence ----------- */
-  const KEY = 'orb_v1_1_state';
+  const KEY = 'orb_v1_1a_state';
   function todayKeyStamp(){
     const d = new Date(); d.setHours(0,0,0,0);
     return d.getTime();
@@ -317,9 +318,7 @@
   /* ----------- Sleep / Mood ----------- */
   function isClockSleeping(now=new Date()){
     const h = now.getHours();
-    if(SLEEP_START > SLEEP_END){ // crosses midnight
-      return (h >= SLEEP_START || h < SLEEP_END);
-    }
+    if(SLEEP_START > SLEEP_END){ return (h >= SLEEP_START || h < SLEEP_END); }
     return (h >= SLEEP_START && h < SLEEP_END);
   }
   function isSleepingActive(){
@@ -332,7 +331,6 @@
     let aura = getComputedStyle(document.documentElement).getPropertyValue('--aura').trim();
     let coreFilter = 'brightness(1)';
 
-    // swap palette for sleep
     if(mood==='sleep'){
       coreEl.style.background =
         `radial-gradient(circle at 50% 45%, var(--sleep-core) 0%, #4980ff 22%, #2a3a80 60%, #101b33 100%)`;
@@ -345,8 +343,6 @@
     } else {
       coreEl.style.background =
         `radial-gradient(circle at 50% 45%, var(--core) 0%, #7bd2ff 20%, #4ed6b9 60%, #1b2a3a 100%)`;
-      auraEl.style.background =
-        `radial-gradient(60% 60% at 50% 45%, rgba(100,255,212,.35), transparent 70%)`;
       auraEl.style.opacity = .8;
       switch(mood){
         case 'energized': overlay='var(--energized)'; coreFilter='brightness(1.25) contrast(1.1) saturate(1.2)'; aura='var(--energized)'; break;
@@ -400,7 +396,6 @@
   }
   function playBurst(){
     playWaveEl.classList.remove('play'); void playWaveEl.offsetWidth; playWaveEl.classList.add('play');
-    // playful wobble
     orbEl.animate(
       [{ transform:'scale(1)' }, { transform:'scale(1.05) rotate(2deg)' }, { transform:'scale(1)' }],
       { duration:500, easing:'ease-out' }
@@ -411,10 +406,8 @@
   }
 
   /* ----------- Actions ----------- */
-  function wakeTemporarily(){
-    wakeUntil = Date.now() + WAKE_WINDOW_MS;
-  }
-  function markFeed(deep=false, source='tap'){
+  function wakeTemporarily(){ wakeUntil = Date.now() + WAKE_WINDOW_MS; }
+  function markFeed(deep=false){
     wakeTemporarily();
     const now = Date.now();
     // Stressed if 3+ feeds in 5m
@@ -431,19 +424,8 @@
     if(deep) confetti();
     updateHud(); updateArc(); setMoodVisual(currentMood());
   }
-  function play(){
-    wakeTemporarily();
-    playBurst();
-    energizedUntil = Date.now() + 4000;
-    setMoodVisual(currentMood());
-  }
-  function pet(){
-    wakeTemporarily();
-    petSoothing();
-    // mini-calm: extend content mood slightly
-    energizedUntil = Math.max(energizedUntil, Date.now() + 3000);
-    setMoodVisual(currentMood());
-  }
+  function play(){ wakeTemporarily(); playBurst(); energizedUntil = Date.now() + 4000; setMoodVisual(currentMood()); }
+  function pet(){  wakeTemporarily(); petSoothing(); energizedUntil = Math.max(energizedUntil, Date.now() + 3000); setMoodVisual(currentMood()); }
 
   /* ----------- HUD ----------- */
   function fmtTime(ts){
@@ -459,65 +441,71 @@
     hudLast.textContent = fmtTime(lastFedAt);
   }
 
-  /* ----------- Input: presses & hold ----------- */
-  function onPointerDown(e){
-    e.preventDefault();
-    // start hold timer for deep feed
-    holdTimer = setTimeout(()=>{ holdTimer=null; tapBuffer=0; markFeed(true,'hold'); }, HOLD_MS);
-  }
+  /* ----------- Input (Android-safe) ----------- */
   function finalizeTaps(){
-    // interpret tapBuffer: 1=feed, 2=play, 3=pet
-    if(tapBuffer === 1) markFeed(false, 'single');
+    if(tapBuffer === 1) markFeed(false);
     else if(tapBuffer === 2) play();
     else if(tapBuffer >= 3) pet();
     tapBuffer = 0;
   }
-  function onPointerUp(e){
-    if(holdTimer){ // not a long hold, count taps
+
+  function onPointerDown(e){
+    // don’t preventDefault here; we want click fallback on Android
+    holdTimer = setTimeout(()=>{ holdTimer=null; tapBuffer=0; markFeed(true); }, HOLD_MS);
+  }
+
+  function onPointerUp(){
+    if(holdTimer){
       clearTimeout(holdTimer); holdTimer=null;
       tapBuffer++;
       if(tapTimer) clearTimeout(tapTimer);
-      tapTimer = setTimeout(()=>{ finalizeTaps(); }, MULTI_TAP_MS);
+      tapTimer = setTimeout(finalizeTaps, MULTI_TAP_MS);
     }
   }
 
-  // Hotkey: Ctrl+Shift+.
+  // Hotkey for desktop testing
   function onKeyDown(e){
-    if((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.'){
-      e.preventDefault();
-      markFeed(false, 'hotkey');
-    }
-    if(e.key.toLowerCase() === 'i'){ // cycle presets
+    if((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.'){ e.preventDefault(); markFeed(false); }
+    if(e.key.toLowerCase() === 'i'){
       const idx = INTERVAL_PRESETS.indexOf(INTERVAL_MIN);
       const next = INTERVAL_PRESETS[(idx+1) % INTERVAL_PRESETS.length];
-      INTERVAL_MIN = next;
-      intervalSel.value = String(next);
-      saveState();
-      updateHud(); updateArc();
+      INTERVAL_MIN = next; intervalSel.value = String(next); saveState(); updateHud(); updateArc();
     }
   }
 
   // Parent→iframe hook still supported
   window.addEventListener('message', (e)=>{
-    if(e?.data?.type === 'taskCompleted'){ markFeed(false, 'postMessage'); }
+    if(e?.data?.type === 'taskCompleted'){ markFeed(false); }
   });
 
+  // Extra listeners to avoid missed releases on Android
+  orbEl.addEventListener('pointerdown', onPointerDown, {passive:true});
+  orbEl.addEventListener('pointerup', onPointerUp, {passive:true});
+  orbEl.addEventListener('pointercancel', onPointerUp, {passive:true});
+  document.addEventListener('pointerup', onPointerUp, {passive:true});
+  window.addEventListener('pointerup', onPointerUp, {passive:true});
+  // Click fallback (fires after tap if pointer events act weird)
+  orbEl.addEventListener('click', (e)=>{ if(!holdTimer) return; /* already handled */ e.preventDefault(); }, {passive:false});
+  // Touchend fallback if pointerup doesn’t arrive
+  document.addEventListener('touchend', ()=>{ if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; tapBuffer++; if(tapTimer) clearTimeout(tapTimer); tapTimer=setTimeout(finalizeTaps, MULTI_TAP_MS); } }, {passive:false});
+
+  window.addEventListener('keydown', onKeyDown);
+
   /* ----------- Drift (awake only) ----------- */
+  let lastDriftSet = 0;
   function setNewDriftTarget(){
-    // Wander within a ~4% viewport radius around center, subtle
-    const dx = (Math.random()*8 - 4); // -4%..+4% of viewport width
-    const dy = (Math.random()*5 - 2.5); // -2.5%..+2.5% of viewport height
+    const dx = (Math.random()*8 - 4);  // -4..+4 vw
+    const dy = (Math.random()*5 - 2.5); // -2.5..+2.5 vh
     driftTarget = { x: dx, y: dy };
     lastDriftSet = performance.now();
     const base = 'translate(-50%,-50%)';
     orbWrap.style.transform = `${base} translate(${dx}vw, ${dy}vh)`;
   }
 
-  /* ----------- Animation Loop ----------- */
-  function tick(){
+  /* ----------- Loop ----------- */
+  function updateArcAndMood(){
     const mood = currentMood();
 
-    // breathing / jitter on orb scale
     if(mood === 'stressed'){
       orbEl.style.transform = `translateZ(0) scale(1) translate(${(Math.random()*2-1)}px, ${(Math.random()*2-1)}px)`;
     } else {
@@ -527,19 +515,9 @@
       orbEl.style.transform = `translateZ(0) scale(${s.toFixed(3)})`;
     }
 
-    // schedule new drift every 2–4s when awake
     if(!isSleepingActive()){
       const elapsed = performance.now() - lastDriftSet;
-      if(elapsed > (2000 + Math.random()*2000)){
-        setNewDriftTarget();
-      }
+      if(elapsed > (2000 + Math.random()*2000)){ setNewDriftTarget(); }
     } else {
-      // snap to center during sleep
       const base = 'translate(-50%,-50%)';
-      if(!/translate\(-50%,-50%\)$/.test(orbWrap.style.transform)){
-        orbWrap.style.transform = base;
-      }
-    }
-
-    updateArc();
-    setMoodVisu
+      if(!/translate\(
