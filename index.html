@@ -6,13 +6,14 @@
   name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
 />
-<title>Orb V1.1b — Silent + Debug Console</title>
+<title>Orb V1.3 — Ethereal Companion + Debug</title>
 <style>
   :root{
     --bg:#0b0f14;
     --orb:#1e2633;
     --orb-glow:#2a3850;
     --accent:#a3ef2f;
+    --accent-2:#2aa7ff;
     --text:#e8eef5;
     --muted:#9fb2c9;
     --danger:#ff4d4f;
@@ -20,25 +21,34 @@
     --panel:#0f141b;
     --panel-2:#0d1118;
     --shadow:rgba(0,0,0,.55);
+
+    /* Ethereal tuning */
+    --orb-glow-alpha:.85;
+    --comp-bright:1;
+    --tether-alpha:.9;
   }
+
   *{box-sizing:border-box}
   html,body{
     margin:0; height:100%; width:100%;
     background:radial-gradient(1200px 800px at 50% 20%, #0f141b 0%, var(--bg) 60%, #05080d 100%);
     color:var(--text);
     overscroll-behavior:none;
-    touch-action:manipulation; /* keep taps crisp; allow scroll edge gestures */
+    touch-action:manipulation;
     -webkit-tap-highlight-color: transparent;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   }
-  .stage{
-    position:fixed; inset:0;
-    display:grid; place-items:center;
+
+  .stage{ position:fixed; inset:0; display:grid; place-items:center; }
+  .wrap{
+    position:relative;
+    width:min(60vmin, 520px);
+    aspect-ratio:1;
   }
+
+  /* ORB */
   .orb{
-    --size:min(60vmin, 520px);
-    height:var(--size); width:var(--size);
-    border-radius:50%;
+    position:absolute; inset:0; border-radius:50%;
     background:
       radial-gradient(60% 60% at 55% 35%, rgba(255,255,255,.08), transparent 60%),
       radial-gradient(50% 50% at 40% 65%, rgba(255,255,255,.04), transparent 60%),
@@ -47,46 +57,56 @@
       0 0 0 2px rgba(255,255,255,.04) inset,
       0 25px 60px -10px var(--shadow),
       0 0 140px 20px var(--orb-glow);
-    position:relative;
     display:grid; place-items:center;
-    user-select:none;
-    touch-action:none; /* we’ll manage gestures */
-    cursor:pointer;
+    user-select:none; touch-action:none; cursor:pointer;
   }
   .orb::after{
     content:"";
     position:absolute; inset:-3%;
     border-radius:50%;
-    background: radial-gradient(60% 60% at 50% 50%, rgba(163,239,47,.08), transparent 70%);
+    background: radial-gradient(60% 60% at 50% 50%, rgba(163,239,47,.12), transparent 70%);
     filter:blur(10px);
     pointer-events:none;
-  }
-  .pip{
-    position:absolute;
-    width:12%;
-    aspect-ratio:1;
-    border-radius:50%;
-    left:50%; top:50%;
-    transform:translate(-50%,-50%);
-    background: radial-gradient(circle at 50% 40%, var(--accent), #6cd21b 60%, #2c6a0f 100%);
-    box-shadow:
-      0 4px 14px rgba(0,0,0,.45),
-      0 0 28px rgba(163,239,47,.55);
-    pointer-events:none;
-  }
-  /* Ripple feedback */
-  .ripple{
-    position:absolute; border-radius:999px; pointer-events:none;
-    background:radial-gradient(circle, rgba(163,239,47,.35), rgba(163,239,47,0) 60%);
-    transform:translate(-50%,-50%) scale(.2);
-    animation:rip .6s ease-out forwards;
-    will-change: transform, opacity;
-  }
-  @keyframes rip{
-    to{ transform:translate(-50%,-50%) scale(1.4); opacity:0; }
+    opacity:.9;
+    transition:opacity .3s ease, filter .3s ease;
   }
 
-  /* Debug Console */
+  .pip{
+    position:absolute; width:12%; aspect-ratio:1; border-radius:50%;
+    left:50%; top:50%; transform:translate(-50%,-50%);
+    background: radial-gradient(circle at 50% 40%, var(--accent), #6cd21b 60%, #2c6a0f 100%);
+    box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 28px rgba(163,239,47,.55);
+    pointer-events:none;
+  }
+
+  /* COMPANION + TETHER */
+  .companion{
+    position:absolute; width:10%; aspect-ratio:1; border-radius:50%;
+    left:50%; top:50%; transform:translate(-50%,-50%);
+    background: radial-gradient(circle at 45% 35%, #c7e7ff, var(--accent-2) 60%, #1a4a73 100%);
+    box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 18px rgba(42,167,255,.55);
+    pointer-events:none;
+    filter:brightness(var(--comp-bright));
+    transition:filter .25s ease;
+  }
+  .companion.pulse{ animation:pl .4s ease-out }
+  @keyframes pl{
+    0%{ transform:translate(var(--cx), var(--cy)) scale(1) }
+    100%{ transform:translate(var(--cx), var(--cy)) scale(1.25) }
+  }
+
+  svg.tether{ position:absolute; inset:0; overflow:visible; pointer-events:none; filter: drop-shadow(0 0 8px rgba(42,167,255,.45)); }
+  .tether__line{ fill:none; stroke:url(#tg); stroke-width:3; stroke-linecap:round; opacity:var(--tether-alpha); }
+
+  .contact{
+    position:absolute; pointer-events:none; border-radius:999px;
+    background:radial-gradient(circle, rgba(163,239,47,.45), rgba(163,239,47,0) 60%);
+    transform:translate(-50%,-50%) scale(.2);
+    animation:rip .6s ease-out forwards;
+  }
+  @keyframes rip{ to{ transform:translate(-50%,-50%) scale(1.4); opacity:0 } }
+
+  /* DEBUG CONSOLE */
   .debug{
     position:fixed; left:12px; bottom:12px; width:min(92vw, 520px);
     background:
@@ -98,26 +118,17 @@
     backdrop-filter: blur(8px);
     overflow:hidden;
   }
-  .debug__bar{
-    display:flex; align-items:center; gap:8px;
-    padding:8px 10px;
-    border-bottom:1px solid rgba(255,255,255,.06);
-  }
-  .dot{
-    height:10px; width:10px; border-radius:50%;
-    background:var(--ok); box-shadow:0 0 8px var(--ok);
-  }
-  .dot.paused{ background:var(--danger); box-shadow:0 0 8px var(--danger); }
-  .debug__title{ font-weight:600; font-size:.95rem; letter-spacing:.2px; color:#e6f3ff; }
+  .debug__bar{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.06); }
+  .dot{ height:10px; width:10px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok) }
+  .dot.paused{ background:var(--danger); box-shadow:0 0 8px var(--danger) }
+  .debug__title{ font-weight:600; font-size:.95rem; letter-spacing:.2px; color:#e6f3ff }
   .spacer{ flex:1 }
   .btn{
     appearance:none; border:1px solid rgba(255,255,255,.1); color:var(--text);
     background:#0e1621; border-radius:999px; padding:6px 10px; font-size:.8rem; cursor:pointer;
   }
   .btn:active{ transform:scale(.98) }
-  .row{
-    display:flex; gap:10px; padding:8px 10px; flex-wrap:wrap; align-items:center;
-  }
+  .row{ display:flex; gap:10px; padding:8px 10px; flex-wrap:wrap; align-items:center; }
   .kv{
     display:flex; gap:6px; align-items:center; font-size:.78rem; color:var(--muted);
     background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); padding:4px 8px; border-radius:10px;
@@ -127,30 +138,77 @@
     max-height:28vh; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size:.82rem; line-height:1.4; padding:8px 10px 10px;
   }
-  .entry{
-    padding:4px 6px; border-left:3px solid transparent; margin:4px 0; border-radius:6px;
-    background:rgba(255,255,255,.03);
-  }
-  .entry.ev{ border-color:#86e59a } /* event */
-  .entry.err{ border-color:#ff8082 } /* errors */
-  .entry.sys{ border-color:#86b5ff } /* system */
+  .entry{ padding:4px 6px; border-left:3px solid transparent; margin:4px 0; border-radius:6px; background:rgba(255,255,255,.03) }
+  .entry.ev{ border-color:#86e59a } .entry.err{ border-color:#ff8082 } .entry.sys{ border-color:#86b5ff }
   .muted{ color:var(--muted) }
-  .kbd{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    background:rgba(255,255,255,.07); padding:2px 6px; border-radius:6px; font-size:.78rem;
+  .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; background:rgba(255,255,255,.07); padding:2px 6px; border-radius:6px; font-size:.78rem }
+  .collapse{ position:absolute; right:10px; top:10px; opacity:.8 }
+  .collapsed .log, .collapsed .row{ display:none }
+
+  /* ===== ETHEREAL STATES ===== */
+  .wrap.state-breathe .companion{
+    animation: comp-breathe 3.6s ease-in-out infinite;
+    filter: brightness(1.15) saturate(1.1);
+  }
+  .wrap.state-sleep .companion{
+    animation: comp-sleep 5.5s ease-in-out infinite;
+    filter: brightness(.6) saturate(.9) blur(.2px);
+  }
+  .wrap.state-excited .companion{
+    animation: comp-excited .9s ease-in-out;
+    filter: brightness(1.6) saturate(1.3);
+  }
+  .wrap.state-focused .companion{
+    filter: brightness(1.35) saturate(1.2);
   }
 
-  /* Small toggle to collapse console (triple-tap also toggles) */
-  .collapse{
-    position:absolute; right:10px; top:10px; opacity:.8;
+  .wrap.state-sleep .tether__line{ opacity:.35 }
+  .wrap.state-breathe .tether__line{ opacity:.75 }
+  .wrap.state-excited .tether__line{ opacity:1 }
+  .wrap.state-focused .tether__line{ opacity:.95 }
+
+  .wrap.state-breathe .orb::after{ opacity:.8 }
+  .wrap.state-sleep   .orb::after{ opacity:.45; filter: blur(14px) }
+  .wrap.state-excited .orb::after{ opacity:1 }
+  .wrap.state-focused .orb::after{ opacity:.9 }
+
+  @keyframes comp-breathe{
+    0%{   transform: translate(var(--cx), var(--cy)) scale(1.00) }
+    50%{  transform: translate(var(--cx), var(--cy)) scale(1.06) }
+    100%{ transform: translate(var(--cx), var(--cy)) scale(1.00) }
   }
-  .collapsed .log, .collapsed .row{ display:none }
+  @keyframes comp-sleep{
+    0%{   transform: translate(var(--cx), var(--cy)) scale(.96) }
+    50%{  transform: translate(var(--cx), var(--cy)) scale(.92) }
+    100%{ transform: translate(var(--cx), var(--cy)) scale(.96) }
+  }
+  @keyframes comp-excited{
+    0%{   transform: translate(var(--cx), var(--cy)) scale(1.0) }
+    35%{  transform: translate(var(--cx), var(--cy)) scale(1.22) }
+    100%{ transform: translate(var(--cx), var(--cy)) scale(1.0) }
+  }
 </style>
 </head>
 <body>
   <div class="stage">
-    <div id="orb" class="orb" aria-label="Interactive Orb" role="button">
-      <div class="pip" aria-hidden="true"></div>
+    <div class="wrap" id="wrap" aria-label="Orb Scene">
+      <div id="orb" class="orb" role="button" aria-label="Interactive Orb">
+        <div class="pip" aria-hidden="true"></div>
+      </div>
+
+      <!-- Tether SVG -->
+      <svg class="tether" id="tether" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#2aa7ff" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#a3ef2f" stop-opacity="0.95"/>
+          </linearGradient>
+        </defs>
+        <path id="tetherLine" class="tether__line" d="M50,50 Q50,50 50,50" />
+      </svg>
+
+      <!-- Companion -->
+      <div id="companion" class="companion" style="--cx:-50%;--cy:-50%;" aria-hidden="true"></div>
     </div>
   </div>
 
@@ -172,6 +230,8 @@
       <div class="kv"><strong>Triple</strong><span id="cTri">0</span></div>
       <div class="kv"><strong>Pointer</strong><span id="cPtr">0</span></div>
       <div class="kv"><strong>Move</strong><span id="cMove">0</span></div>
+      <div class="kv"><strong>Reach</strong><span id="cReach">0</span></div>
+      <div class="kv"><strong>State</strong><span id="cState">awake</span></div>
     </div>
     <div id="log" class="log" role="log" aria-label="Event log"></div>
   </section>
@@ -180,13 +240,29 @@
 (function(){
   "use strict";
 
-  // ======= Config =======
-  const TAP_MAX_DELAY_MS = 300;      // time between taps to be considered multi-tap
-  const TAP_MAX_MOVE_PX  = 18;       // movement tolerance to remain a tap
+  /* ===== CONFIG ===== */
+  const TAP_MAX_DELAY_MS = 300;
+  const TAP_MAX_MOVE_PX  = 18;
   const TRIPLE_TAP_TOGGLES_CONSOLE = true;
 
-  // ======= Elements =======
+  // Companion physics
+  const REACH_MAX_RATIO = 0.70;      // fraction of orb radius the companion can extend
+  const IDLE_ORBIT_RATIO = 0.38;     // idle orbit radius (fraction)
+  const LERP = 0.20;                 // smoothing toward target (0..1)
+  const SPRING_BOOST = 1.85;         // dash multiplier on new targets
+  const CONTACT_SIZE = 140;          // px of contact ripple within wrap
+
+  // Ethereal state thresholds
+  const INACTIVITY_MS_BREATHE = 5000;   // 5s -> breathe
+  const INACTIVITY_MS_SLEEP   = 45000;  // 45s -> sleep
+  const EXCITED_MS            = 1000;   // excited flash duration
+
+  /* ===== ELEMENTS ===== */
+  const wrap = document.getElementById('wrap');
   const orb = document.getElementById('orb');
+  const comp = document.getElementById('companion');
+  const tetherPath = document.getElementById('tetherLine');
+
   const logEl = document.getElementById('log');
   const led = document.getElementById('led');
   const btnPause = document.getElementById('btnPause');
@@ -203,23 +279,31 @@
     tri:document.getElementById('cTri'),
     ptr:document.getElementById('cPtr'),
     move:document.getElementById('cMove'),
+    reach:document.getElementById('cReach'),
   };
+  const stateLabel = document.getElementById('cState');
 
-  // ======= State =======
-  let logging = true;
-  let collapsed = false;
+  /* ===== STATE ===== */
+  let logging = true, collapsed = false;
+  let pointerActive = false, activePointerId = null;
+  let startX = 0, startY = 0, maxTravel = 0;
 
-  let pointerActive = false;
-  let activePointerId = null;
-  let startX = 0, startY = 0;
-  let maxTravel = 0;
+  let tapCount = 0, lastTapTime = 0, lastTapX = 0, lastTapY = 0, tapTimer = null;
 
-  let tapCount = 0;
-  let lastTapTime = 0;
-  let lastTapX = 0, lastTapY = 0;
-  let tapTimer = null;
+  // Companion kinematics (wrap-local px)
+  let cx = 0, cy = 0;               // current pos
+  let tx = 0, ty = 0;               // target pos
+  let vx = 0, vy = 0;               // velocity
+  let idleAngle = 0;                // radians for idle orbit
+  let dashBoost = 0;                // burst acceleration
 
-  // ======= Utils =======
+  // Ethereal state machine
+  // 'awake' | 'breathe' | 'sleep' | 'focused' | 'excited'
+  let mood = 'awake';
+  let inactivityTimer = null;
+  let sleepTimer = null;
+
+  /* ===== UTILS ===== */
   const fmt = (n)=> new Date(n).toLocaleTimeString([], {hour12:false});
   function addLog(type, msg){
     if(!logging && type!=='sys') return;
@@ -229,76 +313,202 @@
     logEl.appendChild(row);
     logEl.scrollTop = logEl.scrollHeight;
   }
-  function inc(el){
-    el.textContent = String( (parseInt(el.textContent, 10) || 0) + 1 );
-  }
-  function rippleAt(x, y, parent){
-    const r = document.createElement('div');
-    r.className = 'ripple';
-    r.style.left = x + 'px';
-    r.style.top  = y + 'px';
-    r.style.width = r.style.height = Math.max(parent.clientWidth, parent.clientHeight) * .6 + 'px';
-    parent.appendChild(r);
-    r.addEventListener('animationend', ()=> r.remove(), {once:true});
-  }
-  function within(a, b, tol){ return Math.abs(a-b) <= tol; }
+  function inc(el){ el.textContent = String( (parseInt(el.textContent, 10) || 0) + 1 ); }
 
-  // ======= Core Tap Detector =======
+  function geo(){
+    const r = wrap.getBoundingClientRect();
+    const size = Math.min(r.width, r.height);
+    const center = { x: r.left + r.width/2, y: r.top + r.height/2 };
+    const localCenter = { x: r.width/2, y: r.height/2 };
+    const radius = size/2;
+    return { rect: r, size, center, localCenter, radius };
+  }
+
+  function clampReach(px, py){
+    const g = geo();
+    const from = g.localCenter;
+    let dx = px - from.x;
+    let dy = py - from.y;
+    const reachMax = g.radius * REACH_MAX_RATIO;
+    const dist = Math.hypot(dx, dy) || 1;
+    if(dist > reachMax){
+      const s = reachMax / dist;
+      dx *= s; dy *= s;
+    }
+    return { x: from.x + dx, y: from.y + dy };
+  }
+
+  function setCompPos(x, y){
+    cx = x; cy = y;
+    const txCss = (x - geo().localCenter.x) + 'px';
+    const tyCss = (y - geo().localCenter.y) + 'px';
+    comp.style.setProperty('--cx', `calc(${txCss})`);
+    comp.style.setProperty('--cy', `calc(${tyCss})`);
+    comp.style.transform = `translate(${txCss}, ${tyCss})`;
+  }
+
+  function drawTether(x, y){
+    const r = wrap.getBoundingClientRect();
+    const vx = (x / r.width) * 100;
+    const vy = (y / r.height) * 100;
+    const cxV = 50, cyV = 50;
+    const qx = (vx + cxV)/2 + (vx - cxV)*0.15;
+    const qy = (vy + cyV)/2 + (vy - cyV)*0.15;
+    tetherPath.setAttribute('d', `M ${cxV},${cyV} Q ${qx},${qy} ${vx},${vy}`);
+  }
+
+  function contactRipple(worldX, worldY){
+    const b = wrap.getBoundingClientRect();
+    const dot = document.createElement('div');
+    dot.className = 'contact';
+    dot.style.left = (worldX - b.left) + 'px';
+    dot.style.top = (worldY - b.top) + 'px';
+    dot.style.width = CONTACT_SIZE + 'px';
+    dot.style.height = CONTACT_SIZE + 'px';
+    wrap.appendChild(dot);
+    dot.addEventListener('animationend', ()=> dot.remove(), {once:true});
+  }
+
+  /* ===== ETHEREAL STATE API ===== */
+  function setWrapState(next){
+    if(mood === next) return;
+    wrap.classList.remove('state-breathe','state-sleep','state-focused','state-excited');
+    mood = next;
+    if(next === 'breathe') wrap.classList.add('state-breathe');
+    if(next === 'sleep')   wrap.classList.add('state-sleep');
+    if(next === 'focused') wrap.classList.add('state-focused');
+    if(next === 'excited') wrap.classList.add('state-excited');
+    stateLabel.textContent = next;
+    addLog('sys', `state → <strong>${next}</strong>`);
+  }
+  function scheduleInactivity(){
+    clearTimeout(inactivityTimer); clearTimeout(sleepTimer);
+    inactivityTimer = setTimeout(()=> setWrapState('breathe'), INACTIVITY_MS_BREATHE);
+    sleepTimer = setTimeout(()=> setWrapState('sleep'), INACTIVITY_MS_SLEEP);
+  }
+  function userWokeInteraction(){
+    setWrapState('awake');
+    scheduleInactivity();
+  }
+  scheduleInactivity();
+
+  /* ===== TAP LOGIC ===== */
+  function within(a,b,t){ return Math.abs(a-b)<=t }
   function handleTap(x, y){
     const now = Date.now();
     const withinTime = (now - lastTapTime) <= TAP_MAX_DELAY_MS;
     const withinDist = within(x, lastTapX, TAP_MAX_MOVE_PX) && within(y, lastTapY, TAP_MAX_MOVE_PX);
-
-    if(withinTime && withinDist){
-      tapCount += 1;
-    }else{
-      tapCount = 1;
-    }
-
-    lastTapTime = now;
-    lastTapX = x; lastTapY = y;
-
+    tapCount = (withinTime && withinDist) ? tapCount + 1 : 1;
+    lastTapTime = now; lastTapX = x; lastTapY = y;
     clearTimeout(tapTimer);
     tapTimer = setTimeout(() => {
-      // Resolve tap sequence
+      const g = geo();
       if(tapCount === 1){
         inc(counters.tap);
-        addLog('ev', `<strong>Tap</strong> at (${Math.round(x)}, ${Math.round(y)})`);
+        addLog('ev', `<strong>Tap</strong> @ (${Math.round(x)}, ${Math.round(y)})`);
       }else if(tapCount === 2){
         inc(counters.dbl);
-        addLog('ev', `<strong>Double-tap</strong> at (${Math.round(x)}, ${Math.round(y)})`);
+        addLog('ev', `<strong>Double-tap</strong>`);
+        const centerWorld = g.center;
+        aimCompanion(centerWorld.x, centerWorld.y, true);
+        setTimeout(()=> aimCompanion(x, y, true), 80);
+        // Excited burst on double tap
+        setWrapState('excited');
+        setTimeout(()=> setWrapState('awake'), EXCITED_MS);
       }else{
         inc(counters.tri);
-        addLog('ev', `<strong>${tapCount}-tap</strong> at (${Math.round(x)}, ${Math.round(y)})`);
-        if(TRIPLE_TAP_TOGGLES_CONSOLE && tapCount >= 3){
-          toggleCollapse();
-        }
+        addLog('ev', `<strong>${tapCount}-tap</strong>`);
+        if(TRIPLE_TAP_TOGGLES_CONSOLE) toggleCollapse();
       }
+      // Always reach on final resolve
+      aimCompanion(x, y, true);
       tapCount = 0;
     }, TAP_MAX_DELAY_MS + 20);
   }
 
-  // ======= Pointer Handlers (canonical) =======
-  function onPointerDown(e){
-    // Only primary interactions (avoid secondary mouse buttons)
-    if(e.isPrimary === false) return;
+  /* ===== COMPANION CONTROL ===== */
+  function aimCompanion(worldX, worldY, dash=false){
+    const g = geo();
+    const lx = worldX - g.rect.left;
+    const ly = worldY - g.rect.top;
+    const clamped = clampReach(lx, ly);
+    tx = clamped.x; ty = clamped.y;
+    if(dash) dashBoost = SPRING_BOOST;
+    inc(counters.reach);
+    addLog('ev', `<strong>reach</strong> -> (${Math.round(tx)}, ${Math.round(ty)})`);
+    contactRipple(worldX, worldY);
+    comp.classList.remove('pulse'); void comp.offsetWidth; comp.classList.add('pulse');
+  }
 
-    pointerActive = true;
-    activePointerId = e.pointerId;
-    startX = e.clientX; startY = e.clientY; maxTravel = 0;
+  function idleTarget(){
+    const g = geo();
+    const speed = (mood === 'sleep') ? 0.006 : 0.02;
+    const orbit = (mood === 'sleep') ? IDLE_ORBIT_RATIO * 0.30 : IDLE_ORBIT_RATIO;
+    idleAngle += speed;
+    const r = g.radius * orbit;
+    const x = g.localCenter.x + Math.cos(idleAngle) * r;
+    const y = g.localCenter.y + Math.sin(idleAngle * 1.12) * r;
+    return clampReach(x, y);
+  }
 
-    // Capture pointer to the orb to keep receiving events even if finger leaves
-    if(orb.setPointerCapture){
-      try{ orb.setPointerCapture(activePointerId); }catch(_){}
+  function tick(){
+    // When no target yet, set idle
+    if(!tx && !ty){
+      const it = idleTarget();
+      tx = it.x; ty = it.y;
+      setCompPos(tx, ty);
+      drawTether(tx, ty);
+      requestAnimationFrame(tick);
+      return;
     }
 
-    inc(counters.down);
-    inc(counters.ptr);
+    const springScale = (mood === 'sleep') ? 0.6 : 1.0;
 
-    addLog('ev', `<strong>pointerdown</strong> id=${e.pointerId} type=${e.pointerType} @ (${Math.round(e.clientX)}, ${Math.round(e.clientY)})`);
-    rippleAt(e.offsetX ?? (e.clientX - orb.getBoundingClientRect().left),
-             e.offsetY ?? (e.clientY - orb.getBoundingClientRect().top),
-             orb);
+    const ax = (tx - cx) * (LERP + dashBoost*0.08) * springScale;
+    const ay = (ty - cy) * (LERP + dashBoost*0.08) * springScale;
+    vx = (vx + ax) * 0.78;
+    vy = (vy + ay) * 0.78;
+    cx += vx; cy += vy;
+
+    dashBoost *= 0.82;
+    if(dashBoost < 0.02) dashBoost = 0;
+
+    setCompPos(cx, cy);
+    drawTether(cx, cy);
+
+    // If we're near target and idle, slowly move the idle target so it feels alive
+    if(Math.hypot(tx - cx, ty - cy) < 0.6){
+      if(mood === 'awake' || mood === 'breathe' || mood === 'sleep'){
+        const it = idleTarget();
+        tx = it.x; ty = it.y;
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  /* ===== EVENTS ===== */
+  function worldPointFromEvent(e){
+    if(e.touches && e.touches[0]){
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerDown(e){
+    if(e.isPrimary === false) return;
+    pointerActive = true; activePointerId = e.pointerId;
+    startX = e.clientX; startY = e.clientY; maxTravel = 0;
+    if(orb.setPointerCapture){ try{ orb.setPointerCapture(activePointerId); }catch(_){ } }
+
+    inc(counters.down); inc(counters.ptr);
+    addLog('ev', `<strong>pointerdown</strong> id=${e.pointerId} type=${e.pointerType}`);
+
+    userWokeInteraction();
+    setWrapState('focused');
+
+    const p = worldPointFromEvent(e);
+    aimCompanion(p.x, p.y, true);
   }
 
   function onPointerMove(e){
@@ -308,98 +518,14 @@
     const dist = Math.hypot(dx, dy);
     if(dist > maxTravel) maxTravel = dist;
     inc(counters.move);
+
+    userWokeInteraction(); // keep awake while dragging
+    const p = worldPointFromEvent(e);
+    aimCompanion(p.x, p.y, false);
   }
 
   function onPointerUp(e){
     if(e.pointerId !== activePointerId) return;
-
-    pointerActive = false;
-    activePointerId = null;
-
+    pointerActive = false; activePointerId = null;
     inc(counters.up);
-    addLog('ev', `<strong>pointerup</strong> type=${e.pointerType} travel=${Math.round(maxTravel)}px`);
-
-    // Tap classification
-    const rect = orb.getBoundingClientRect();
-    const x = e.clientX, y = e.clientY;
-    if(maxTravel <= TAP_MAX_MOVE_PX){
-      handleTap(x, y);
-    }
-  }
-
-  function onPointerCancel(e){
-    if(e.pointerId !== activePointerId) return;
-    pointerActive = false;
-    activePointerId = null;
-    addLog('err', `<strong>pointercancel</strong>`);
-  }
-
-  // ======= Click (mouse synthesis) =======
-  function onClick(e){
-    inc(counters.click);
-    addLog('ev', `<strong>click</strong> button=${e.button} @ (${Math.round(e.clientX)}, ${Math.round(e.clientY)})`);
-  }
-
-  // ======= Touch fallbacks (just in case) =======
-  // Prevent passive scrolling on direct orb touches while preserving page scroll elsewhere.
-  function onTouchStart(e){
-    if(e.target === orb){ e.preventDefault(); } // keep tap tight
-  }
-  function onTouchEnd(e){
-    // No-op; pointer events already handled. Kept for completeness.
-  }
-
-  // ======= Keyboard (debug only) =======
-  document.addEventListener('keydown', (e)=>{
-    if(e.key.toLowerCase() === 'd'){
-      togglePause();
-    } else if(e.key.toLowerCase() === 'c'){
-      clearLog();
-    } else if(e.key === 'ArrowDown'){
-      toggleCollapse();
-    }
-  });
-
-  // ======= Debug Console Controls =======
-  function togglePause(){
-    logging = !logging;
-    btnPause.textContent = logging ? 'Pause' : 'Resume';
-    led.classList.toggle('paused', !logging);
-    addLog('sys', `<span class="kbd">logging</span> ${logging ? 'enabled' : 'paused'}`);
-  }
-  function clearLog(){
-    logEl.innerHTML = '';
-    addLog('sys', '<span class="kbd">log</span> cleared');
-  }
-  function toggleCollapse(){
-    collapsed = !collapsed;
-    debug.classList.toggle('collapsed', collapsed);
-    btnCollapse.textContent = collapsed ? '▴' : '▾';
-  }
-
-  btnPause.addEventListener('click', togglePause, {passive:true});
-  btnClear.addEventListener('click', clearLog, {passive:true});
-  btnCollapse.addEventListener('click', toggleCollapse, {passive:true});
-
-  // ======= Bind Events =======
-  // Pointer events cover mouse, pen, and touch on modern Chrome (Android included).
-  orb.addEventListener('pointerdown', onPointerDown);
-  orb.addEventListener('pointermove', onPointerMove);
-  orb.addEventListener('pointerup', onPointerUp);
-  orb.addEventListener('pointercancel', onPointerCancel);
-
-  // Click for mouse users (some browsers still synthesize distinct click)
-  orb.addEventListener('click', onClick);
-
-  // Touch fallbacks to keep scroll/tap behavior tidy
-  orb.addEventListener('touchstart', onTouchStart, {passive:false});
-  orb.addEventListener('touchend', onTouchEnd, {passive:true});
-
-  // ======= Startup =======
-  addLog('sys', 'Orb V1.1b ready. <span class="kbd">D</span>=pause, <span class="kbd">C</span>=clear, <span class="kbd">▼</span>=collapse, triple-tap toggles console.');
-})();
-</script>
-</body>
-</html>
-
-
+    addLog('ev', `<strong>pointerup</str
