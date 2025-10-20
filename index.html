@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>The Orb — Desk Companion (V1)</title>
+<style>
+  :root{
+    --bg:#0a0b10;
+    --core:#9ae6ff;        /* base orb color */
+    --aura:#64ffd4;        /* aura glow */
+    --content:#a0ff9e;     /* content mood tint */
+    --curious:#a1b6ff;     /* curious mood tint */
+    --lonely:#ff9eb3;      /* lonely mood tint */
+    --energized:#fff59e;   /* energized pulse tint */
+    --stressed:#ff8c8c;    /* stressed tint */
+    --sleep:#7ea2a8;       /* sleeping tint */
+    --ring:#1b2130;
+    --tick:#2a3347;
+    --spark:#ffffff;
+    --text:#dfe7f3;
+    --muted:#96a3b8;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:radial-gradient(1200px 800px at 50% 100%, #0c0f16 0%, var(--bg) 60%, #05060a 100%);
+    color:var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+    overflow:hidden;
+  }
+
+  .stage{
+    position:relative;
+    height:100%;
+    display:grid;
+    place-items:center;
+    user-select:none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Orb container */
+  .orb{
+    position:relative;
+    width:min(60vmin,520px);
+    aspect-ratio:1/1;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    filter: drop-shadow(0 20px 60px rgba(0,0,0,.45));
+    cursor:pointer;
+    transition: transform .18s ease;
+  }
+  .orb:active{ transform:scale(.99); }
+
+  /* Outer orbit ring (shows minute ticks + interval arc) */
+  .orbit-ring{
+    position:absolute; inset:0;
+    border-radius:50%;
+    background:
+      radial-gradient(closest-side, transparent calc(50% - 10px), var(--ring) calc(50% - 9px), transparent calc(50% - 8px)),
+      radial-gradient(closest-side, transparent calc(50% - 2px), rgba(255,255,255,.08) calc(50% - 1px), transparent 50%);
+    mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 49%);
+  }
+
+  /* Minute ticks */
+  .ticks{
+    position:absolute; inset:0; border-radius:50%;
+  }
+  .tick{
+    position:absolute; left:50%; top:50%;
+    width:2px; height:8%;
+    transform-origin: center calc(-190%);
+    background: var(--tick);
+    opacity:.7;
+    border-radius:2px;
+  }
+
+  /* Interval progress arc (drawn with conic-gradient) */
+  .interval-arc{
+    position:absolute; inset:-10px;
+    border-radius:50%;
+    background:
+      conic-gradient(var(--aura) var(--arc), transparent 0),
+      radial-gradient(closest-side, transparent calc(50% - 12px), rgba(255,255,255,.06) calc(50% - 11px), transparent calc(50% - 10px));
+    filter: blur(0.3px);
+    pointer-events:none;
+  }
+
+  /* Inner core + aura */
+  .core{
+    position:absolute; inset:12%;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 50% 45%, var(--core) 0%, #7bd2ff 20%, #4ed6b9 60%, #1b2a3a 100%);
+    box-shadow:
+      0 0 40px 10px var(--aura),
+      inset 0 0 80px 20px rgba(255,255,255,.08);
+    transition: filter .3s ease, box-shadow .3s ease, background .3s ease;
+  }
+
+  .aura{
+    position:absolute; inset:0;
+    border-radius:50%;
+    background:radial-gradient(60% 60% at 50% 45%, rgba(100,255,212,.35), transparent 70%);
+    filter: blur(20px);
+    pointer-events:none;
+    transition: opacity .4s ease;
+    opacity:.8;
+  }
+
+  /* Particle layer */
+  .particles{
+    position:absolute; inset:18%;
+    filter: blur(.2px);
+    pointer-events:none;
+    mix-blend-mode: screen;
+  }
+  .particle{
+    position:absolute;
+    width:6px; height:6px; border-radius:50%;
+    background: radial-gradient(circle, var(--spark) 0%, rgba(255,255,255,.6) 60%, transparent 70%);
+    opacity:.7;
+    animation: float 8s linear infinite;
+  }
+  @keyframes float{
+    from{ transform:translate(var(--sx,0), var(--sy,0)) scale(1); opacity:.6; }
+    50% { transform:translate(calc(var(--sx,0)*-1), calc(var(--sy,0)*-1)) scale(1.2); opacity:1; }
+    to  { transform:translate(var(--sx,0), var(--sy,0)) scale(1); opacity:.6; }
+  }
+
+  /* Mood overlays */
+  .mood-overlay{
+    position:absolute; inset:14%;
+    border-radius:50%;
+    background: radial-gradient(60% 60% at 50% 45%, transparent 40%, currentColor 120%);
+    mix-blend-mode: screen;
+    filter: blur(18px);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .4s ease;
+  }
+
+  /* Status footer (tiny) */
+  .hud{
+    position:absolute; bottom:14px; left:50%;
+    transform:translateX(-50%);
+    font-size:12px; letter-spacing:.3px;
+    color:var(--muted);
+    text-align:center;
+    opacity:.85;
+    padding:6px 10px;
+    background: rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:999px;
+    backdrop-filter: blur(6px);
+  }
+  .hud b{ color:var(--text); font-weight:600; }
+
+  /* Ripple feedback on feed */
+  .ripple{
+    position:absolute; inset:0; border-radius:50%;
+    border:2px solid rgba(255,255,255,.25);
+    transform: scale(.9);
+    opacity:0;
+    pointer-events:none;
+  }
+  .ripple.show{
+    animation: ripple .8s ease-out;
+  }
+  @keyframes ripple{
+    from{ transform:scale(.7); opacity:.6; }
+    to  { transform:scale(1.25); opacity:0; }
+  }
+
+  /* Playful easter egg confetti */
+  .confetti{
+    position:absolute; inset:0; pointer-events:none; overflow:hidden;
+  }
+  .conf{
+    position:absolute; width:6px; height:10px; border-radius:2px;
+    background: white; opacity:.9;
+    animation: fall 900ms ease-out forwards;
+  }
+  @keyframes fall{
+    from{ transform: translateY(-10px) rotate(0deg); }
+    to  { transform: translateY(140%) rotate(380deg); opacity:.2; }
+  }
+
+  /* Accessibility hint (hidden but togglable) */
+  .hint{
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:var(--muted); opacity:.65;
+    background: rgba(255,255,255,.02);
+    border:1px solid rgba(255,255,255,.06);
+    padding:4px 8px; border-radius:8px; backdrop-filter: blur(4px);
+  }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="hint" id="hint">Tap/Click to feed · Hold for deep feed · Ctrl+Shift+. hotkey · Press “i” to cycle interval</div>
+    <div class="orb" id="orb" aria-label="Interactive Orb">
+      <div class="orbit-ring">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="interval-arc" id="intervalArc"></div>
+      <div class="core" id="core"></div>
+      <div class="aura" id="aura"></div>
+      <div class="mood-overlay" id="mood"></div>
+      <div class="particles" id="particles"></div>
+      <div class="ripple" id="ripple"></div>
+      <div class="confetti" id="confetti"></div>
+    </div>
+    <div class="hud" id="hud">
+      Interval: <b id="hudInterval">15m</b> · Fed today: <b id="hudCount">0</b> · Last: <b id="hudLast">–</b>
+    </div>
+  </div>
+
+<script>
+(function(){
+  /* ----------- Settings ----------- */
+  const url = new URL(window.location.href);
+  const DEFAULT_INTERVAL = parseInt(url.searchParams.get('interval') || '15', 10) || 15; // minutes
+  const INTERVAL_PRESETS = [10,15,20,25];
+  const SLEEP_START = 20; // 20:00
+  const SLEEP_END   = 6;  // 06:00
+  const HOLD_MS = 700;    // hold to deep feed
+
+  /* ----------- State ----------- */
+  const orbEl = document.getElementById('orb');
+  const coreEl = document.getElementById('core');
+  const auraEl = document.getElementById('aura');
+  const moodEl = document.getElementById('mood');
+  const ticksEl = document.getElementById('ticks');
+  const arcEl = document.getElementById('intervalArc');
+  const rippleEl = document.getElementById('ripple');
+  const confettiEl = document.getElementById('confetti');
+
+  const hudInterval = document.getElementById('hudInterval');
+  const hudCount = document.getElementById('hudCount');
+  const hudLast = document.getElementById('hudLast');
+
+  const particlesEl = document.getElementById('particles');
+
+  let INTERVAL_MIN = DEFAULT_INTERVAL;
+  let feedCount = 0;
+  let lastFedAt = 0; // epoch ms
+  let energizedUntil = 0;
+  let stressedUntil = 0;
+  let holdTimer = null;
+  let tapTimestamps = []; // for playful easter egg (rapid taps)
+  let recentFeeds = [];   // for stressed detection
+  let arcDeg = 0;
+
+  /* ----------- Persistence ----------- */
+  const KEY = 'orb_v1_state';
+  function todayKeyStamp(){
+    const d = new Date(); d.setHours(0,0,0,0);
+    return d.getTime();
+  }
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return;
+      const obj = JSON.parse(raw);
+      if(obj.day === todayKeyStamp()){
+        feedCount = obj.feedCount||0;
+        lastFedAt = obj.lastFedAt||0;
+      } else {
+        // new day, reset
+        feedCount = 0;
+        lastFedAt = 0;
+        saveState();
+      }
+    }catch(e){}
+  }
+  function saveState(){
+    const obj = { day: todayKeyStamp(), feedCount, lastFedAt };
+    localStorage.setItem(KEY, JSON.stringify(obj));
+  }
+
+  /* ----------- Ticks (minute markers on ring) ----------- */
+  function buildTicks(){
+    ticksEl.innerHTML = '';
+    const N = 60; // minute-style markers
+    for(let i=0;i<N;i++){
+      const t = document.createElement('div');
+      t.className = 'tick';
+      t.style.transform = `translate(-50%,-50%) rotate(${i*6}deg)`;
+      t.style.height = (i%5===0) ? '9%' : '8%';
+      t.style.opacity = (i%5===0) ? .9 : .55;
+      ticksEl.appendChild(t);
+    }
+  }
+
+  /* ----------- Particles ----------- */
+  function spawnParticles(n=18){
+    particlesEl.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const sx = (Math.random()*60 - 30) + 'px';
+      const sy = (Math.random()*60 - 30) + 'px';
+      p.style.setProperty('--sx', sx);
+      p.style.setProperty('--sy', sy);
+      p.style.left = (Math.random()*90 + 5) + '%';
+      p.style.top  = (Math.random()*90 + 5) + '%';
+      p.style.animationDuration = (6 + Math.random()*6) + 's';
+      particlesEl.appendChild(p);
+    }
+  }
+
+  /* ----------- Mood Engine ----------- */
+  function isSleeping(now=new Date()){
+    const h = now.getHours();
+    if(SLEEP_START > SLEEP_END){
+      return (h >= SLEEP_START || h < SLEEP_END);
+    }
+    return (h >= SLEEP_START && h < SLEEP_END);
+  }
+
+  function setMoodVisual(mood){
+    // Default tints
+    let tint = getComputedStyle(document.documentElement).getPropertyValue('--core').trim();
+    let aura = getComputedStyle(document.documentElement).getPropertyValue('--aura').trim();
+    let overlay = 'transparent';
+    let auraOpacity = .8;
+    let coreFilter = 'brightness(1)';
+
+    switch(mood){
+      case 'energized':
+        overlay = 'var(--energized)';
+        aura = 'var(--energized)';
+        coreFilter = 'brightness(1.25) contrast(1.1) saturate(1.2)';
+        break;
+      case 'content':
+        overlay = 'var(--content)';
+        aura = 'var(--content)';
+        coreFilter = 'brightness(1.1)';
+        break;
+      case 'curious':
+        overlay = 'var(--curious)';
+        aura = 'var(--curious)';
+        coreFilter = 'brightness(0.95)';
+        break;
+      case 'lonely':
+        overlay = 'var(--lonely)';
+        aura = 'var(--lonely)';
+        coreFilter = 'brightness(0.8) saturate(0.9)';
+        auraOpacity = .55;
+        break;
+      case 'stressed':
+        overlay = 'var(--stressed)';
+        aura = 'var(--stressed)';
+        coreFilter = 'brightness(1.1) contrast(1.2)';
+        break;
+      case 'sleep':
+        overlay = 'var(--sleep)';
+        aura = 'var(--sleep)';
+        coreFilter = 'brightness(0.6) saturate(.8)';
+        auraOpacity = .45;
+        break;
+    }
+
+    auraEl.style.background = `radial-gradient(60% 60% at 50% 45%, ${aura}33, transparent 70%)`;
+    auraEl.style.opacity = auraOpacity;
+    moodEl.style.color = overlay;
+    moodEl.style.opacity = (overlay==='transparent') ? 0 : .6;
+    coreEl.style.filter = coreFilter;
+  }
+
+  function currentMood(){
+    const now = Date.now();
+    if(isSleeping(new Date(now))) return 'sleep';
+    if(now < energizedUntil) return 'energized';
+    if(now < stressedUntil) return 'stressed';
+    if(!lastFedAt) return 'curious';
+    const mins = (now - lastFedAt)/60000;
+    if(mins <= 60) return 'content';
+    if(mins <= 120) return 'curious';
+    return 'lonely';
+  }
+
+  /* ----------- Interval Arc (0→100% since last feed) ----------- */
+  function updateArc(){
+    const now = Date.now();
+    let since = lastFedAt ? (now - lastFedAt) : 0;
+    const m = since/60000;
+    const pct = Math.max(0, Math.min(1, m / INTERVAL_MIN));
+    arcDeg = Math.floor(pct * 360);
+    arcEl.style.setProperty('--arc', arcDeg + 'deg');
+  }
+
+  /* Spark when an interval completes */
+  let lastSparkIndex = -1;
+  function maybeSpark(){
+    if(!lastFedAt) return;
+    const now = Date.now();
+    const elapsedMins = Math.floor((now - lastFedAt)/60000);
+    const idx = Math.floor(elapsedMins / INTERVAL_MIN);
+    if(idx !== lastSparkIndex){
+      lastSparkIndex = idx;
+      ripple(); // subtle feedback
+    }
+  }
+
+  /* ----------- Feed mechanics ----------- */
+  function ripple(){
+    rippleEl.classList.remove('show');
+    // restart animation
+    void rippleEl.offsetWidth;
+    rippleEl.classList.add('show');
+  }
+
+  function confetti(){
+    for(let i=0;i<24;i++){
+      const c = document.createElement('div');
+      c.className = 'conf';
+      c.style.left = (50 + (Math.random()*30 - 15)) + '%';
+      c.style.background = `hsl(${Math.random()*360}, 80%, 60%)`;
+      confettiEl.appendChild(c);
+      setTimeout(()=>c.remove(), 950);
+    }
+  }
+
+  function markFeed(deep=false, source='tap'){
+    const now = Date.now();
+    // Stressed detector: 3+ feeds in last 5m
+    recentFeeds = recentFeeds.filter(t => now - t < 5*60*1000);
+    recentFeeds.push(now);
+    if(recentFeeds.length >= 3){
+      stressedUntil = now + 2500;
+    }
+
+    lastFedAt = now;
+    feedCount += deep ? 2 : 1;
+    saveState();
+    energizedUntil = now + (deep ? 12000 : 8000);
+
+    ripple();
+    if(deep) confetti();
+    updateHud();
+    updateArc();
+    setMoodVisual(currentMood());
+  }
+
+  /* ----------- HUD ----------- */
+  function fmtTime(ts){
+    if(!ts) return '–';
+    const d = new Date(ts);
+    let h = d.getHours();
+    const m = d.getMinutes().toString().padStart(2,'0');
+    const ampm = h>=12 ? 'PM' : 'AM';
+    h = h%12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
+  function updateHud(){
+    hudInterval.textContent = INTERVAL_MIN + 'm';
+    hudCount.textContent = String(feedCount);
+    hudLast.textContent = fmtTime(lastFedAt);
+  }
+
+  /* ----------- Input handlers ----------- */
+  function onPointerDown(e){
+    e.preventDefault();
+    tapTimestamps.push(Date.now());
+    tapTimestamps = tapTimestamps.filter(t => Date.now()-t < 3000);
+    if(tapTimestamps.length >= 5) confetti(); // playful easter egg
+
+    holdTimer = setTimeout(()=>{ markFeed(true, 'hold'); holdTimer=null; }, HOLD_MS);
+  }
+  function onPointerUp(e){
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; markFeed(false, 'tap'); }
+  }
+
+  // Hotkey: Ctrl+Shift+.
+  function onKeyDown(e){
+    if((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.'){
+      e.preventDefault();
+      markFeed(false, 'hotkey');
+    }
+    if(e.key.toLowerCase() === 'i'){ // cycle interval presets
+      const idx = INTERVAL_PRESETS.indexOf(INTERVAL_MIN);
+      const next = INTERVAL_PRESETS[(idx+1) % INTERVAL_PRESETS.length];
+      INTERVAL_MIN = next;
+      updateHud();
+      updateArc();
+    }
+  }
+
+  // Parent → iframe integration (optional)
+  window.addEventListener('message', (e)=>{
+    if(e?.data?.type === 'taskCompleted'){
+      markFeed(false, 'postMessage');
+    }
+  });
+
+  /* ----------- Animation loop ----------- */
+  function tick(){
+    // mood drift micro-animation (breathing / jitter)
+    const mood = currentMood();
+
+    if(mood === 'stressed'){
+      orbEl.style.transform = `translateZ(0) scale(1) translate(${(Math.random()*2-1)}px, ${(Math.random()*2-1)}px)`;
+    } else {
+      const t = performance.now()/1000;
+      const amp = (mood==='lonely') ? 0.004 : (mood==='curious') ? 0.006 : (mood==='content') ? 0.008 : (mood==='energized') ? 0.012 : (mood==='sleep') ? 0.003 : 0.006;
+      const s = 1 + Math.sin(t*2)*amp;
+      orbEl.style.transform = `translateZ(0) scale(${s.toFixed(3)})`;
+    }
+
+    updateArc();
+    maybeSpark();
+    requestAnimationFrame(tick);
+  }
+
+  /* ----------- Midnight reset ----------- */
+  function scheduleMidnightReset(){
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24,0,0,0);
+    setTimeout(()=>{ feedCount=0; lastFedAt=0; saveState(); updateHud(); }, midnight-now);
+  }
+
+  /* ----------- Boot ----------- */
+  function boot(){
+    buildTicks();
+    spawnParticles();
+    loadState();
+    updateHud();
+    setMoodVisual(currentMood());
+    updateArc();
+    scheduleMidnightReset();
+
+    // Inputs
+    orbEl.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('keydown', onKeyDown);
+
+    // Show a hint for a few seconds on first run
+    const hint = document.getElementById('hint');
+    setTimeout(()=> hint.classList.add('hidden'), 6000);
+
+    // Start loop
+    requestAnimationFrame(tick);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
